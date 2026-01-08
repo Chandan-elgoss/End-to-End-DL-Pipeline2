@@ -1,38 +1,40 @@
-import io
+"""DEPRECATED (legacy BentoML classifier service).
 
-import bentoml
-import numpy as np
-import torch
-from bentoml.io import Image, Text
-from PIL import Image as PILImage
+This code belonged to the older Lung X-ray classification pipeline using BentoML.
+For the current YOLO object-detection pipeline, use the FastAPI app in app.py.
 
-from Xray.constant.training_pipeline import *
+The entire implementation is intentionally disabled to avoid accidental imports
+or missing dependency errors (e.g., bentoml).
+"""
 
-bento_model = bentoml.pytorch.get(BENTOML_MODEL_NAME)
+# The legacy service is kept for reference but commented out.
+# If you truly need BentoML again, re-enable and ensure dependencies are installed.
 
-runner = bento_model.to_runner()
+if False:  # noqa: SIM108 - explicit disable
+    import io
+    import bentoml
+    import numpy as np
+    import torch
+    from bentoml.io import Image, Text
+    from PIL import Image as PILImage
 
-svc = bentoml.Service(name=BENTOML_SERVICE_NAME, runners=[runner])
+    from Xray.constant.training_pipeline import *  # type: ignore
 
+    bento_model = bentoml.pytorch.get(BENTOML_MODEL_NAME)
 
-@svc.api(input=Image(allowed_mime_types=["image/jpeg"]), output=Text())
-async def predict(img):
-    b = io.BytesIO()
+    runner = bento_model.to_runner()
 
-    img.save(b, "jpeg")
+    svc = bentoml.Service(name=BENTOML_SERVICE_NAME, runners=[runner])
 
-    im_bytes = b.getvalue()
-
-    my_transforms = bento_model.custom_objects.get(TRAIN_TRANSFORMS_KEY)
-
-    image = PILImage.open(io.BytesIO(im_bytes)).convert("RGB")
-
-    image = torch.from_numpy(np.array(my_transforms(image).unsqueeze(0)))
-
-    image = image.reshape(1, 3, 224, 224)
-
-    batch_ret = await runner.async_run(image)
-
-    pred = PREDICTION_LABEL[max(torch.argmax(batch_ret, dim=1).detach().cpu().tolist())]
-
-    return pred
+    @svc.api(input=Image(allowed_mime_types=["image/jpeg"]), output=Text())
+    async def predict(img):
+        b = io.BytesIO()
+        img.save(b, "jpeg")
+        im_bytes = b.getvalue()
+        my_transforms = bento_model.custom_objects.get(TRAIN_TRANSFORMS_KEY)
+        image = PILImage.open(io.BytesIO(im_bytes)).convert("RGB")
+        image = torch.from_numpy(np.array(my_transforms(image).unsqueeze(0)))
+        image = image.reshape(1, 3, 224, 224)
+        batch_ret = await runner.async_run(image)
+        pred = PREDICTION_LABEL[max(torch.argmax(batch_ret, dim=1).detach().cpu().tolist())]
+        return pred

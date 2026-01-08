@@ -17,11 +17,11 @@ def get_requirements(file_path:str)->List[str]:
 
 setup(
 
-name="Xray",
-version="0.0.1",
-author="sunny savita",
-author_email="sunny.savita@ineuron.ai",
-install_requires=get_requirements(r"C:\\Users\\sunny\\deeplearningproject\\requirements_dev.txt"),
+name="FloorPlan_Object_Detection",
+version="0.1.0",
+author="",
+author_email="",
+install_requires=get_requirements(r"../requirements_dev.txt"),
 package=find_packages()
 
 )

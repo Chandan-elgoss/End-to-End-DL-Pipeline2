@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
 from torch.utils.data.dataloader import DataLoader
 
 
@@ -23,6 +25,16 @@ class DataTransformationArtifact:
 @dataclass
 class ModelTrainerArtifact:
     trained_model_path: str
+
+
+@dataclass
+class ODModelTrainerArtifact:
+    """Artifacts produced by YOLO object-detection training."""
+
+    best_weights_path: str
+    last_weights_path: Optional[str] = None
+    training_artifact_dir: Optional[str] = None
+    mlflow_run_id: Optional[str] = None
     
 
 
@@ -32,7 +44,19 @@ class ModelEvaluationArtifact:
 
 
 @dataclass
-class ModelPusherArtifact:
-    bentoml_model_name: str
+class ODModelEvaluationArtifact:
+    """Evaluation artifacts for YOLO object detection."""
 
-    bentoml_service_name: str
+    metrics: Dict[str, Any]
+    mlflow_run_id: Optional[str] = None
+
+
+@dataclass
+class ModelPusherArtifact:
+    # Legacy Bento fields (kept for backward compatibility)
+    bentoml_model_name: str = ""
+    bentoml_service_name: str = ""
+
+    # New local deployment fields
+    pushed_model_path: str = ""
+    deployed_models_dir: str = ""

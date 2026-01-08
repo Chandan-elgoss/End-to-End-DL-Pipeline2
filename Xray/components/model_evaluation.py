@@ -1,139 +1,93 @@
+import os
 import sys
-from typing import Tuple
+from pathlib import Path
+from typing import Any, Dict, Optional
 
-import torch
-from torch.nn import CrossEntropyLoss, Module
-from torch.optim import SGD, Optimizer
-from torch.utils.data import DataLoader
+import mlflow
+from ultralytics import YOLO
 
-from Xray.entity.artifact_entity import (
-    DataTransformationArtifact,
-    ModelEvaluationArtifact,
-    ModelTrainerArtifact,
-)
+from Xray.entity.artifact_entity import ODModelEvaluationArtifact, ODModelTrainerArtifact
 from Xray.entity.config_entity import ModelEvaluationConfig
 from Xray.exception import XRayException
 from Xray.logger import logging
-from Xray.ml.model.arch import Net
-
-
 
 
 class ModelEvaluation:
+    """YOLO evaluation + MLflow logging.
+
+    Runs `model.val()` and logs key metrics + best weights as an MLflow artifact.
+    """
+
     def __init__(
         self,
-        data_transformation_artifact: DataTransformationArtifact,
         model_evaluation_config: ModelEvaluationConfig,
-        model_trainer_artifact: ModelTrainerArtifact,
+        model_trainer_artifact: ODModelTrainerArtifact,
     ):
-
-        self.data_transformation_artifact = data_transformation_artifact
-
         self.model_evaluation_config = model_evaluation_config
-
         self.model_trainer_artifact = model_trainer_artifact
 
-    def configuration(self) -> Tuple[DataLoader, Module, float, Optimizer]:
-        logging.info("Entered the configuration method of Model evaluation class")
+    def _start_or_resume_mlflow(self) -> Optional[str]:
+        mlflow.set_tracking_uri(self.model_evaluation_config.mlflow_tracking_uri)
+        mlflow.set_experiment(self.model_evaluation_config.mlflow_experiment_name)
+        if self.model_trainer_artifact.mlflow_run_id:
+            mlflow.start_run(run_id=self.model_trainer_artifact.mlflow_run_id)
+            return self.model_trainer_artifact.mlflow_run_id
+        run = mlflow.start_run(run_name=self.model_evaluation_config.mlflow_run_name or None)
+        return run.info.run_id
 
+    @staticmethod
+    def _coerce_metrics(metrics: Dict[str, Any]) -> Dict[str, float]:
+        coerced: Dict[str, float] = {}
+        for k, v in metrics.items():
+            try:
+                coerced[k] = float(v)
+            except Exception:
+                continue
+        return coerced
+
+    def initiate_model_evaluation(self) -> ODModelEvaluationArtifact:
+        logging.info("Entered initiate_model_evaluation (YOLO)")
         try:
-            test_dataloader: DataLoader = (
-                self.data_transformation_artifact.transformed_test_object
+            os_best = Path(self.model_trainer_artifact.best_weights_path)
+            if not os_best.exists():
+                raise FileNotFoundError(
+                    f"Trained best weights not found: {self.model_trainer_artifact.best_weights_path}"
+                )
+
+            model = YOLO(str(os_best))
+            val_results = model.val(
+                data=self.model_evaluation_config.dataset_yaml_path,
+                conf=self.model_evaluation_config.conf_threshold,
+                iou=self.model_evaluation_config.iou_threshold,
+                verbose=False,
             )
 
-            model: Module = Net()
+            raw_metrics: Dict[str, Any] = {}
+            # Ultralytics exposes metrics differently across versions.
+            if hasattr(val_results, "results_dict"):
+                raw_metrics = dict(val_results.results_dict)
+            elif hasattr(val_results, "metrics"):
+                raw_metrics = dict(getattr(val_results, "metrics"))
 
-            model: Module = torch.load(self.model_trainer_artifact.trained_model_path)
+            metrics = self._coerce_metrics(raw_metrics)
 
-            model.to(self.model_evaluation_config.device)
+            run_id = self._start_or_resume_mlflow()
+            try:
+                if metrics:
+                    mlflow.log_metrics(metrics)
+                mlflow.log_params(
+                    {
+                        "dataset_yaml": self.model_evaluation_config.dataset_yaml_path,
+                        "conf": self.model_evaluation_config.conf_threshold,
+                        "iou": self.model_evaluation_config.iou_threshold,
+                    }
+                )
+                mlflow.log_artifact(str(os_best), artifact_path="model")
+            finally:
+                mlflow.end_run()
 
-            cost: Module = CrossEntropyLoss()
-
-            '''optimizer: Optimizer = SGD(
-                model.parameters(), **self.model_evaluation_config.optimizer_params
-            )'''
-
-            model.eval()
-
-            logging.info("Exited the configuration method of Model evaluation class")
-
-            return test_dataloader, model, cost
-
-        except Exception as e:
-            raise XRayException(e, sys)
-
-    def test_net(self) -> float:
-        logging.info("Entered the test_net method of Model evaluation class")
-
-        try:
-            test_dataloader, net, cost = self.configuration()
-
-            with torch.no_grad():
-                holder = []
-
-                for _, data in enumerate(test_dataloader):
-                    images = data[0].to(self.model_evaluation_config.device)
-
-                    labels = data[1].to(self.model_evaluation_config.device)
-
-                    output = net(images)
-
-                    loss = cost(output, labels)
-
-                    predictions = torch.argmax(output, 1)
-
-                    for i in zip(images, labels, predictions):
-                        h = list(i)
-
-                        holder.append(h)
-
-                    logging.info(
-                        f"Actual_Labels : {labels}     Predictions : {predictions}     labels : {loss.item():.4f}"
-                    )
-
-                    self.model_evaluation_config.test_loss += loss.item()
-
-                    self.model_evaluation_config.test_accuracy += (
-                        (predictions == labels).sum().item()
-                    )
-
-                    self.model_evaluation_config.total_batch += 1
-
-                    self.model_evaluation_config.total += labels.size(0)
-
-                    logging.info(
-                        f"Model  -->   Loss : {self.model_evaluation_config.test_loss/ self.model_evaluation_config.total_batch} Accuracy : {(self.model_evaluation_config.test_accuracy / self.model_evaluation_config.total) * 100} %"
-                    )
-
-            accuracy = (
-                self.model_evaluation_config.test_accuracy
-                / self.model_evaluation_config.total
-            ) * 100
-
-            logging.info("Exited the test_net method of Model evaluation class")
-
-            return accuracy
-
-        except Exception as e:
-            raise XRayException(e, sys)
-
-    def initiate_model_evaluation(self) -> ModelEvaluationArtifact:
-        logging.info(
-            "Entered the initiate_model_evaluation method of Model evaluation class"
-        )
-
-        try:
-            accuracy = self.test_net()
-
-            model_evaluation_artifact: ModelEvaluationArtifact = (
-                ModelEvaluationArtifact(model_accuracy=accuracy)
-            )
-
-            logging.info(
-                "Exited the initiate_model_evaluation method of Model evaluation class"
-            )
-
-            return model_evaluation_artifact
-
+            artifact = ODModelEvaluationArtifact(metrics=metrics, mlflow_run_id=run_id)
+            logging.info("Exited initiate_model_evaluation (YOLO)")
+            return artifact
         except Exception as e:
             raise XRayException(e, sys)

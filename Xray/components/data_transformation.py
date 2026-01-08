@@ -1,3 +1,10 @@
+"""DEPRECATED (not used in current YOLO pipeline).
+
+The Ultralytics YOLO training loop reads the dataset directly from the
+YOLO-format `data.yaml` and handles augmentations internally. This module
+is retained for backward compatibility with the legacy classifier code path.
+"""
+
 import os
 import sys
 from typing import Tuple

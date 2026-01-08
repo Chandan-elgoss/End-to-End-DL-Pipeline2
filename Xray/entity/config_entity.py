@@ -1,116 +1,103 @@
 import os
 from dataclasses import dataclass
 
-from torch import device
-
-from Xray.constant.training_pipeline import *
+from Xray.constant.training_pipeline import (
+    ARTIFACT_DIR,
+    BATCH,
+    CONF_THRESHOLD,
+    DATASET_YAML_PATH,
+    DEPLOYED_MODEL_FILENAME,
+    DEPLOYED_MODELS_DIR,
+    EPOCHS,
+    IMAGE_SIZE,
+    IOU_THRESHOLD,
+    MLFLOW_EXPERIMENT_NAME,
+    MLFLOW_RUN_NAME,
+    MLFLOW_TRACKING_URI,
+    TIMESTAMP,
+    YOLO_BASE_MODEL,
+)
 
 
 @dataclass
 class DataIngestionConfig:
+    """DEPRECATED for the object-detection pipeline.
+
+    Kept to avoid breaking older flows, but it is not used when training
+    YOLO floor-plan object detection.
+    """
+
     def __init__(self):
-        self.s3_data_folder: str = S3_DATA_FOLDER
-
-        self.bucket_name: str = BUCKET_NAME
-
+        # Intentionally left as-is (legacy). If you still want S3 ingestion,
+        # reintroduce the required constants in Xray.constant.training_pipeline.
+        self.s3_data_folder: str = ""
+        self.bucket_name: str = ""
         self.artifact_dir: str = os.path.join(ARTIFACT_DIR, TIMESTAMP)
-
-        self.data_path: str = os.path.join(
-            self.artifact_dir, "data_ingestion", self.s3_data_folder
-        )
-
+        self.data_path: str = os.path.join(self.artifact_dir, "data_ingestion")
         self.train_data_path: str = os.path.join(self.data_path, "train")
-
         self.test_data_path: str = os.path.join(self.data_path, "test")
 
 
 
 @dataclass
 class DataTransformationConfig:
+    """DEPRECATED for the object-detection pipeline.
+
+    YOLO uses dataset YAML + its own dataloaders. This configuration is kept
+    only for backward compatibility.
+    """
+
     def __init__(self):
-        self.color_jitter_transforms: dict = {
-            "brightness": BRIGHTNESS,
-            "contrast": CONTRAST,
-            "saturation": SATURATION,
-            "hue": HUE,
-        }
-
-        self.RESIZE: int = RESIZE
-
-        self.CENTERCROP: int = CENTERCROP
-
-        self.RANDOMROTATION: int = RANDOMROTATION
-
-        self.normalize_transforms: dict = {
-            "mean": NORMALIZE_LIST_1,
-            "std": NORMALIZE_LIST_2,
-        }
-
-        self.data_loader_params: dict = {
-            "batch_size": BATCH_SIZE,
-            "shuffle": SHUFFLE,
-            "pin_memory": PIN_MEMORY,
-        }
-
-        self.artifact_dir: str = os.path.join(
-            ARTIFACT_DIR, TIMESTAMP, "data_transformation"
-        )
-
-        self.train_transforms_file: str = os.path.join(
-            self.artifact_dir, TRAIN_TRANSFORMS_FILE
-        )
-
-        self.test_transforms_file: str = os.path.join(
-            self.artifact_dir, TEST_TRANSFORMS_FILE
-        )
+        self.artifact_dir: str = os.path.join(ARTIFACT_DIR, TIMESTAMP, "data_transformation")
+        self.train_transforms_file: str = os.path.join(self.artifact_dir, "train_transforms.pkl")
+        self.test_transforms_file: str = os.path.join(self.artifact_dir, "test_transforms.pkl")
 
 
 
 
 @dataclass
 class ModelTrainerConfig:
+    """Object detection trainer configuration (Ultralytics YOLO)."""
+
     def __init__(self):
-        self.artifact_dir: int = os.path.join(ARTIFACT_DIR, TIMESTAMP, "model_training")
+        self.artifact_dir: str = os.path.join(ARTIFACT_DIR, TIMESTAMP, "model_training")
+        self.dataset_yaml_path: str = DATASET_YAML_PATH
+        self.base_model: str = YOLO_BASE_MODEL
 
-        self.trained_bentoml_model_name: str = "xray_model"
+        # Leave these as None in constants; set them before running.
+        self.epochs = EPOCHS
+        self.image_size = IMAGE_SIZE
+        self.batch = BATCH
 
-        self.trained_model_path: int = os.path.join(
-            self.artifact_dir, TRAINED_MODEL_NAME
-        )
+        self.conf_threshold: float = CONF_THRESHOLD
+        self.iou_threshold: float = IOU_THRESHOLD
 
-        self.train_transforms_key: str = TRAIN_TRANSFORMS_KEY
-
-        self.epochs: int = EPOCH
-
-        self.optimizer_params: dict = {"lr": 0.01, "momentum": 0.8}
-
-        self.scheduler_params: dict = {"step_size": STEP_SIZE, "gamma": GAMMA}
-
-        self.device: device = DEVICE
+        # Where we expect YOLO to write weights under artifact_dir.
+        self.weights_dir: str = os.path.join(self.artifact_dir, "weights")
+        self.best_weights_path: str = os.path.join(self.weights_dir, "best.pt")
+        self.last_weights_path: str = os.path.join(self.weights_dir, "last.pt")
         
 @dataclass
 class ModelEvaluationConfig:
+    """Object detection evaluation configuration (Ultralytics YOLO + MLflow)."""
+
     def __init__(self):
-        self.device: device = DEVICE
+        self.artifact_dir: str = os.path.join(ARTIFACT_DIR, TIMESTAMP, "model_evaluation")
+        self.dataset_yaml_path: str = DATASET_YAML_PATH
+        self.conf_threshold: float = CONF_THRESHOLD
+        self.iou_threshold: float = IOU_THRESHOLD
 
-        self.test_loss: int = 0
-
-        self.test_accuracy: int = 0
-
-        self.total: int = 0
-
-        self.total_batch: int = 0
-
-        self.optimizer_params: dict = {"lr": 0.01, "momentum": 0.8}
+        # MLflow
+        self.mlflow_tracking_uri: str = MLFLOW_TRACKING_URI
+        self.mlflow_experiment_name: str = MLFLOW_EXPERIMENT_NAME
+        self.mlflow_run_name: str = MLFLOW_RUN_NAME
 
 # Model Pusher Configurations
 @dataclass
 class ModelPusherConfig:
     def __init__(self):
-        self.bentoml_model_name: str = BENTOML_MODEL_NAME
+        # Local-only “deployment”: copy weights to a stable location.
+        self.artifact_dir: str = os.path.join(ARTIFACT_DIR, TIMESTAMP, "model_pusher")
+        self.deployed_models_dir: str = DEPLOYED_MODELS_DIR
+        self.deployed_model_filename: str = DEPLOYED_MODEL_FILENAME
 
-        self.bentoml_service_name: str = BENTOML_SERVICE_NAME
-
-        self.train_transforms_key: str = TRAIN_TRANSFORMS_KEY
-
-        self.bentoml_ecr_image: str = BENTOML_ECR_URI

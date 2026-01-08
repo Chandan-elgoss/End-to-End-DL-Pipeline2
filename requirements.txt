@@ -1,8 +1,14 @@
-bentoml
-torchvison
+ultralytics
+mlflow
+fastapi
+uvicorn
+opencv-python
+numpy
+
+# Legacy dependencies (kept if you still use older code paths)
 joblib
 tqdm
-pip-chill
-wincertstore
+torch
+torchvision
 
 -e .

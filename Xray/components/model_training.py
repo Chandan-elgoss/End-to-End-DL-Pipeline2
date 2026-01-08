@@ -1,230 +1,82 @@
+ 
 import os
 import sys
+from pathlib import Path
 
-import bentoml
-import joblib
-import torch
-import torch.nn.functional as F
-from torch.nn import Module
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import StepLR, _LRScheduler
-from tqdm import tqdm
+from ultralytics import YOLO
 
-from Xray.constant.training_pipeline import *
-from Xray.entity.artifact_entity import (
-    DataTransformationArtifact,
-    ModelTrainerArtifact,
-)
+from Xray.entity.artifact_entity import ODModelTrainerArtifact
 from Xray.entity.config_entity import ModelTrainerConfig
 from Xray.exception import XRayException
 from Xray.logger import logging
-from Xray.ml.model.arch import Net
-
-
 
 
 class ModelTrainer:
-    def __init__(
-        self,
-        data_transformation_artifact: DataTransformationArtifact,
-        model_trainer_config: ModelTrainerConfig,
-    ):
-        self.model_trainer_config: ModelTrainerConfig = model_trainer_config
+    """YOLO (Ultralytics) trainer for floor-plan object detection.
 
-        self.data_transformation_artifact: DataTransformationArtifact = (
-            data_transformation_artifact
-        )
+    Replaces legacy Lung X-ray classifier training.
+    - No DataIngestion / DataTransformation dependency.
+    - Expects a YOLO dataset YAML (train/val paths + class names).
+    """
 
-        self.model: Module = Net()
+    def __init__(self, model_trainer_config: ModelTrainerConfig):
+        self.model_trainer_config = model_trainer_config
 
+    def _validate_config(self) -> None:
+        missing = []
+        if not self.model_trainer_config.dataset_yaml_path:
+            missing.append("DATASET_YAML_PATH")
+        if not self.model_trainer_config.base_model:
+            missing.append("YOLO_BASE_MODEL")
+        if self.model_trainer_config.epochs is None:
+            missing.append("EPOCHS")
+        if self.model_trainer_config.image_size is None:
+            missing.append("IMAGE_SIZE")
+        if self.model_trainer_config.batch is None:
+            missing.append("BATCH")
+        if missing:
+            raise ValueError("Missing required training constants: " + ", ".join(missing))
 
-
-
-    def train(self, optimizer: Optimizer) -> None:
-        """
-        Description: To train the model
-
-        input: model,device,train_loader,optimizer,epoch
-
-        output: loss, batch id and accuracy
-        """
-        logging.info("Entered the train method of Model trainer class")
+    def initiate_model_trainer(self, mlflow_run_id: str | None = None) -> ODModelTrainerArtifact:
+        """Train YOLO and return best/last weights paths."""
+        logging.info("Entered initiate_model_trainer (YOLO)")
 
         try:
-            self.model.train()
-
-            pbar = tqdm(self.data_transformation_artifact.transformed_train_object)
-
-            correct: int = 0
-
-            processed = 0
-
-            for batch_idx, (data, target) in enumerate(pbar):
-                data, target = data.to(DEVICE), target.to(DEVICE)
-
-                # Initialization of gradient
-                optimizer.zero_grad()
-
-                # In PyTorch, gradient is accumulated over backprop and even though thats used in RNN generally not used in CNN
-                # or specific requirements
-                ## prediction on data
-
-                y_pred = self.model(data)
-
-                # Calculating loss given the prediction
-                loss = F.nll_loss(y_pred, target)
-
-                # Backprop
-                loss.backward()
-
-                optimizer.step()
-
-                # get the index of the log-probability corresponding to the max value
-                pred = y_pred.argmax(dim=1, keepdim=True)
-
-                correct += pred.eq(target.view_as(pred)).sum().item()
-
-                processed += len(data)
-
-                pbar.set_description(
-                    desc=f"Loss={loss.item()} Batch_id={batch_idx} Accuracy={100*correct/processed:0.2f}"
-                )
-
-            logging.info("Exited the train method of Model trainer class")
-
-        except Exception as e:
-            raise XRayException(e, sys)
-        
-
-
-
-    def test(self) -> None:
-        try:
-            """
-            Description: To test the model
-
-            input: model, DEVICE, test_loader
-
-            output: average loss and accuracy
-
-            """
-            logging.info("Entered the test method of Model trainer class")
-
-            self.model.eval()
-
-            test_loss: float = 0.0
-
-            correct: int = 0
-
-            with torch.no_grad():
-                for (
-                    data,
-                    target,
-                ) in self.data_transformation_artifact.transformed_test_object:
-                    data, target = data.to(DEVICE), target.to(DEVICE)
-
-                    output = self.model(data)
-
-                    test_loss += F.nll_loss(output, target, reduction="sum").item()
-
-                    pred = output.argmax(dim=1, keepdim=True)
-
-                    correct += pred.eq(target.view_as(pred)).sum().item()
-
-                test_loss /= len(
-                    self.data_transformation_artifact.transformed_test_object.dataset
-                )
-
-                print(
-                    "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n".format(
-                        test_loss,
-                        correct,
-                        len(
-                            self.data_transformation_artifact.transformed_test_object.dataset
-                        ),
-                        100.0
-                        * correct
-                        / len(
-                            self.data_transformation_artifact.transformed_test_object.dataset
-                        ),
-                    )
-                )
-
-            logging.info(
-                "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)".format(
-                    test_loss,
-                    correct,
-                    len(
-                        self.data_transformation_artifact.transformed_test_object.dataset
-                    ),
-                    100.0
-                    * correct
-                    / len(
-                        self.data_transformation_artifact.transformed_test_object.dataset
-                    ),
-                )
-            )
-
-            logging.info("Exited the test method of Model trainer class")
-
-        except Exception as e:
-            raise XRayException(e, sys)
-        
-
-        
-
-    def initiate_model_trainer(self) -> ModelTrainerArtifact:
-        try:
-            logging.info(
-                "Entered the initiate_model_trainer method of Model trainer class"
-            )
-
-            model: Module = self.model.to(self.model_trainer_config.device)
-
-            optimizer: Optimizer = torch.optim.SGD(
-                model.parameters(), **self.model_trainer_config.optimizer_params
-            )
-
-            scheduler: _LRScheduler = StepLR(
-                optimizer=optimizer, **self.model_trainer_config.scheduler_params
-            )
-
-            for epoch in range(1, self.model_trainer_config.epochs + 1):
-                print("Epoch : ", epoch)
-
-                self.train(optimizer=optimizer)
-
-                optimizer.step()
-
-                scheduler.step()
-
-                self.test()
-
+            self._validate_config()
             os.makedirs(self.model_trainer_config.artifact_dir, exist_ok=True)
 
-            torch.save(model, self.model_trainer_config.trained_model_path)
+            model = YOLO(self.model_trainer_config.base_model)
 
-            train_transforms_obj = joblib.load(
-                self.data_transformation_artifact.train_transform_file_path
+            # Ultralytics will create a run folder under `project/name`.
+            # We set `project` to our artifact dir and `name` to '.' so weights land in:
+            # artifacts/<timestamp>/model_training/weights/best.pt
+            _ = model.train(
+                data=self.model_trainer_config.dataset_yaml_path,
+                epochs=int(self.model_trainer_config.epochs),
+                imgsz=int(self.model_trainer_config.image_size),
+                batch=int(self.model_trainer_config.batch),
+                project=self.model_trainer_config.artifact_dir,
+                name=".",
+                exist_ok=True,
+                conf=self.model_trainer_config.conf_threshold,
+                iou=self.model_trainer_config.iou_threshold,
             )
 
-            bentoml.pytorch.save_model(
-                name=self.model_trainer_config.trained_bentoml_model_name,
-                model=model,
-                custom_objects={
-                    self.model_trainer_config.train_transforms_key: train_transforms_obj
-                },
+            # Expected paths (Ultralytics convention under artifact_dir/weights)
+            best_path = Path(self.model_trainer_config.best_weights_path)
+            last_path = Path(self.model_trainer_config.last_weights_path)
+
+            if not best_path.exists():
+                logging.warning("Expected best.pt not found at %s", str(best_path))
+
+            artifact = ODModelTrainerArtifact(
+                best_weights_path=str(best_path),
+                last_weights_path=str(last_path) if last_path.exists() else None,
+                training_artifact_dir=self.model_trainer_config.artifact_dir,
+                mlflow_run_id=mlflow_run_id,
             )
 
-            model_trainer_artifact: ModelTrainerArtifact = ModelTrainerArtifact(
-                trained_model_path=self.model_trainer_config.trained_model_path
-            )
-
-            logging.info(
-                "Exited the initiate_model_trainer method of Model trainer class"
-            )
-
-            return model_trainer_artifact
-
+            logging.info("Exited initiate_model_trainer (YOLO)")
+            return artifact
         except Exception as e:
             raise XRayException(e, sys)

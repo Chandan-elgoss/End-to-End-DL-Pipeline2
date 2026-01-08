@@ -1,3 +1,10 @@
+"""DEPRECATED (not used in current YOLO pipeline).
+
+This module previously handled S3 data sync for the Lung X-ray classifier.
+The floor-plan object detection pipeline operates directly from YOLO-format
+datasets present under the datasets/ folder; ingestion is not required.
+"""
+
 import sys
 
 from Xray.cloud_storage.s3_operation import S3Operation

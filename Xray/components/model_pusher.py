@@ -1,56 +1,34 @@
-import os
 import sys
+from pathlib import Path
+import shutil
 
-from Xray.entity.artifact_entity import ModelPusherArtifact
+from Xray.entity.artifact_entity import ModelPusherArtifact, ODModelTrainerArtifact
 from Xray.entity.config_entity import ModelPusherConfig
 from Xray.exception import XRayException
 from Xray.logger import logging
 
 
 class ModelPusher:
-    def __init__(self, model_pusher_config: ModelPusherConfig):
+    def __init__(self, model_pusher_config: ModelPusherConfig, model_trainer_artifact: ODModelTrainerArtifact):
         self.model_pusher_config = model_pusher_config
+        self.model_trainer_artifact = model_trainer_artifact
 
-    def build_and_push_bento_image(self):
-        logging.info("Entered build_and_push_bento_image method of ModelPusher class")
+    # NOTE (legacy): This repository previously built and pushed a BentoML image to ECR.
+    # That flow is intentionally disabled for this local-only object-detection pipeline.
+    # def build_and_push_bento_image(self):
+    #     ...
 
-        try:
-            logging.info("Building the bento from bentofile.yaml")
+    def deploy_locally(self) -> Path:
+        """Copy best weights to a stable local deployment path."""
+        best_path = Path(self.model_trainer_artifact.best_weights_path)
+        if not best_path.exists():
+            raise FileNotFoundError(f"Best weights not found: {best_path}")
 
-            os.system("bentoml build")
-
-            logging.info("Built the bento from bentofile.yaml")
-
-            logging.info("Creating docker image for bento")
-
-            os.system(
-                f"bentoml containerize {self.model_pusher_config.bentoml_service_name}:latest -t 136566696263.dkr.ecr.us-east-1.amazonaws.com/{self.model_pusher_config.bentoml_ecr_image}:latest"
-            )
-
-            logging.info("Created docker image for bento")
-
-            logging.info("Logging into ECR")
-
-            os.system(
-                "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 136566696263.dkr.ecr.us-east-1.amazonaws.com"
-            )
-
-            logging.info("Logged into ECR")
-
-            logging.info("Pushing bento image to ECR")
-
-            os.system(
-                f"docker push 136566696263.dkr.ecr.us-east-1.amazonaws.com/{self.model_pusher_config.bentoml_ecr_image}:latest"
-            )
-
-            logging.info("Pushed bento image to ECR")
-
-            logging.info(
-                "Exited build_and_push_bento_image method of ModelPusher class"
-            )
-
-        except Exception as e:
-            raise XRayException(e, sys)
+        deployed_dir = Path(self.model_pusher_config.deployed_models_dir)
+        deployed_dir.mkdir(parents=True, exist_ok=True)
+        target = deployed_dir / self.model_pusher_config.deployed_model_filename
+        shutil.copy2(best_path, target)
+        return target
         
 
 
@@ -64,11 +42,11 @@ class ModelPusher:
         logging.info("Entered initiate_model_pusher method of ModelPusher class")
 
         try:
-            self.build_and_push_bento_image()
+            pushed_path = self.deploy_locally()
 
             model_pusher_artifact = ModelPusherArtifact(
-                bentoml_model_name=self.model_pusher_config.bentoml_model_name,
-                bentoml_service_name=self.model_pusher_config.bentoml_service_name,
+                pushed_model_path=str(pushed_path),
+                deployed_models_dir=self.model_pusher_config.deployed_models_dir,
             )
 
             logging.info("Exited the initiate_model_pusher method of ModelPusher class")
