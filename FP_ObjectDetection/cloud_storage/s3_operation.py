@@ -1,7 +1,7 @@
 import os
 import sys
 
-from Xray.exception import XRayException
+from FP_ObjectDetection.exception import XRayException
 
 
 class S3Operation:

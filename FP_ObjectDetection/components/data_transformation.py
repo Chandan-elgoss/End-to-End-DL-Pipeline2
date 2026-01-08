@@ -14,13 +14,13 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 
-from Xray.entity.artifact_entity import (
+from FP_ObjectDetection.entity.artifact_entity import (
     DataIngestionArtifact,
     DataTransformationArtifact,
 )
-from Xray.entity.config_entity import DataTransformationConfig
-from Xray.exception import XRayException
-from Xray.logger import logging
+from FP_ObjectDetection.entity.config_entity import DataTransformationConfig
+from FP_ObjectDetection.exception import XRayException
+from FP_ObjectDetection.logger import logging
 
 
 

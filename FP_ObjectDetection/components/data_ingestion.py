@@ -7,12 +7,12 @@ datasets present under the datasets/ folder; ingestion is not required.
 
 import sys
 
-from Xray.cloud_storage.s3_operation import S3Operation
-from Xray.constant.training_pipeline import *
-from Xray.entity.artifact_entity import DataIngestionArtifact
-from Xray.entity.config_entity import DataIngestionConfig
-from Xray.exception import XRayException
-from Xray.logger import logging
+from FP_ObjectDetection.cloud_storage.s3_operation import S3Operation
+from FP_ObjectDetection.constant.training_pipeline import *
+from FP_ObjectDetection.entity.artifact_entity import DataIngestionArtifact
+from FP_ObjectDetection.entity.config_entity import DataIngestionConfig
+from FP_ObjectDetection.exception import XRayException
+from FP_ObjectDetection.logger import logging
 
 
 class DataIngestion:

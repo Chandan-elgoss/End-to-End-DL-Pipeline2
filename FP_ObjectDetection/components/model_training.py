@@ -5,10 +5,10 @@ from pathlib import Path
 
 from ultralytics import YOLO
 
-from Xray.entity.artifact_entity import ODModelTrainerArtifact
-from Xray.entity.config_entity import ModelTrainerConfig
-from Xray.exception import XRayException
-from Xray.logger import logging
+from FP_ObjectDetection.entity.artifact_entity import ODModelTrainerArtifact
+from FP_ObjectDetection.entity.config_entity import ModelTrainerConfig
+from FP_ObjectDetection.exception import XRayException
+from FP_ObjectDetection.logger import logging
 
 
 class ModelTrainer:

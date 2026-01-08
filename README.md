@@ -4,11 +4,13 @@ This project has been refactored from a Lung X-ray classifier into a production-
 
 ## Structure
 
-- Xray/components: training, evaluation (logs to MLflow), and local deployment (copies best.pt to deployed_models/)
-- Xray/entity: config and artifact dataclasses
-- Xray/pipeline: `TrainPipeline` orchestrating train → evaluate → push
+FP_ObjectDetection/components: training, evaluation (logs to MLflow), and local deployment (copies best.pt to deployed_models/)
+FP_ObjectDetection/entity: config and artifact dataclasses
+FP_ObjectDetection/pipeline: `TrainPipeline` orchestrating train → evaluate → push
+
 - datasets/: YOLO-format dataset (see datasets/FURNITURE_DETECTION.v1/data.yaml)
 - app.py: FastAPI app for local inference UI
+  Edit constants in [FP_ObjectDetection/constant/training_pipeline/**init**.py](FP_ObjectDetection/constant/training_pipeline/__init__.py):
 
 ## Setup
 

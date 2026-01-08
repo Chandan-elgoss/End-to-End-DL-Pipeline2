@@ -2,10 +2,10 @@ import sys
 from pathlib import Path
 import shutil
 
-from Xray.entity.artifact_entity import ModelPusherArtifact, ODModelTrainerArtifact
-from Xray.entity.config_entity import ModelPusherConfig
-from Xray.exception import XRayException
-from Xray.logger import logging
+from FP_ObjectDetection.entity.artifact_entity import ModelPusherArtifact, ODModelTrainerArtifact
+from FP_ObjectDetection.entity.config_entity import ModelPusherConfig
+from FP_ObjectDetection.exception import XRayException
+from FP_ObjectDetection.logger import logging
 
 
 class ModelPusher:

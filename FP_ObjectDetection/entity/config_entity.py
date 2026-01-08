@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 
-from Xray.constant.training_pipeline import (
+from FP_ObjectDetection.constant.training_pipeline import (
     ARTIFACT_DIR,
     BATCH,
     CONF_THRESHOLD,
@@ -29,7 +29,7 @@ class DataIngestionConfig:
 
     def __init__(self):
         # Intentionally left as-is (legacy). If you still want S3 ingestion,
-        # reintroduce the required constants in Xray.constant.training_pipeline.
+        # reintroduce the required constants in FP_ObjectDetection.constant.training_pipeline.
         self.s3_data_folder: str = ""
         self.bucket_name: str = ""
         self.artifact_dir: str = os.path.join(ARTIFACT_DIR, TIMESTAMP)

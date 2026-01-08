@@ -1,16 +1,16 @@
 import sys
-from Xray.components.model_training import ModelTrainer
-from Xray.components.model_evaluation import ModelEvaluation
-from Xray.components.model_pusher import ModelPusher
-from Xray.exception import XRayException
-from Xray.logger import logging
-from Xray.entity.artifact_entity import (
+from FP_ObjectDetection.components.model_training import ModelTrainer
+from FP_ObjectDetection.components.model_evaluation import ModelEvaluation
+from FP_ObjectDetection.components.model_pusher import ModelPusher
+from FP_ObjectDetection.exception import XRayException
+from FP_ObjectDetection.logger import logging
+from FP_ObjectDetection.entity.artifact_entity import (
     ODModelTrainerArtifact,
     ODModelEvaluationArtifact,
     ModelPusherArtifact,
     )
 
-from Xray.entity.config_entity import (
+from FP_ObjectDetection.entity.config_entity import (
     ModelTrainerConfig,
     ModelEvaluationConfig,
     ModelPusherConfig

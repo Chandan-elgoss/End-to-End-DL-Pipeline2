@@ -18,7 +18,7 @@ if False:  # noqa: SIM108 - explicit disable
     from bentoml.io import Image, Text
     from PIL import Image as PILImage
 
-    from Xray.constant.training_pipeline import *  # type: ignore
+    from FP_ObjectDetection.constant.training_pipeline import *  # type: ignore
 
     bento_model = bentoml.pytorch.get(BENTOML_MODEL_NAME)
 
