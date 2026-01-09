@@ -6,10 +6,11 @@ import numpy as np
 import base64
 import json
 from pathlib import Path
+import logging
 
 # Model loading
 # NOTE: this path is produced by the pipeline "pusher" step.
-DEFAULT_MODEL_PATH = Path("deployed_models") / "best.pt"
+DEFAULT_MODEL_PATH = Path("deployed_models") / "best249.pt"
 
 # Leave these as-is for now; you can tune later.
 DEFAULT_CONF = 0.30
@@ -23,14 +24,14 @@ app = FastAPI(title="Furniture Detector")
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    warning = "" if model else "<p style=\"color:red;\">Model not found at deployed_models/best.pt. Train + push first.</p>"
+    warning = "" if model else f"<p style=\"color:red;\">Model not found at {DEFAULT_MODEL_PATH}. Train + push first.</p>"
     return f"""
     <html>
       <body style="font-family:Arial; text-align:center; margin-top:50px; background:#f0fff0;">
         <h1 style="color:green;">Furniture & Floorplan Detector LIVE</h1>
         {warning}
         <h2>Upload image</h2>
-        <form action="/predict" enctype="multipart/form-data" method="post">
+        <form action="/predict_PL" enctype="multipart/form-data" method="post">
           <input name="file" type="file" accept="image/*" required>
           <br><br>
           <button type="submit" style="padding:20px 60px; font-size:24px; background:#32CD32; color:white; border:none; border-radius:15px;">
@@ -41,21 +42,36 @@ def home():
     </html>
     """
 
+@app.post("/predict_PL")
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-  if model is None:
-    return HTMLResponse("<h2 style='color:red;'>Model not available. Run training and pusher steps first.</h2>")
+    if model is None:
+        return HTMLResponse("<h2 style='color:red;'>Model not available. Run training and pusher steps first.</h2>")
+
     contents = await file.read()
     img = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
+    if img is None:
+        return HTMLResponse("<h2 style='color:red;'>Invalid image uploaded.</h2>", status_code=400)
 
     results = model(img, conf=DEFAULT_CONF, imgsz=DEFAULT_IMGSZ)[0]
+
+    # Log inference speed similar to Ultralytics console output
+    try:
+        sp = results.speed  # dict with preprocess, inference, postprocess (ms)
+        logging.getLogger("uvicorn").info(
+            "Speed: %.1fms preprocess, %.1fms inference, %.1fms postprocess",
+            sp.get("preprocess", 0.0), sp.get("inference", 0.0), sp.get("postprocess", 0.0)
+        )
+    except Exception:
+        pass
+
     annotated = results.plot(line_width=3, font_size=1.5)
     _, buffer = cv2.imencode(".jpg", annotated)
     img64 = base64.b64encode(buffer).decode()
 
     detections = []
     for b in results.boxes:
-        x1,y1,x2,y2 = map(int, b.xyxy[0])
+        x1, y1, x2, y2 = map(int, b.xyxy[0])
         detections.append({
             "class": model.names[int(b.cls)],
             "confidence": round(float(b.conf), 3),

@@ -1,0 +1,15 @@
+artifact_uri: file:///E:/projects/TrainingFPDModel/End-to-End-DL-Pipeline2/runs/mlflow/847168406949495912/442b48b813104fd48a94f7f31353ede0/artifacts
+end_time: 1767935101975
+entry_point_name: ''
+experiment_id: '847168406949495912'
+lifecycle_stage: active
+run_id: 442b48b813104fd48a94f7f31353ede0
+run_name: model_training
+run_uuid: 442b48b813104fd48a94f7f31353ede0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1767935031349
+status: 3
+tags: []
+user_id: Lenovo

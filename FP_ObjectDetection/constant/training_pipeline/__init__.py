@@ -27,15 +27,15 @@ ARTIFACT_DIR: str = "artifacts"
 # ===== Object Detection (Ultralytics YOLO) =====
 # Path to your YOLO dataset YAML (train/val paths + class names).
 # Example in this repo: datasets/FURNITURE_DETECTION.v1/data.yaml
-DATASET_YAML_PATH: str = ""  # set me
+DATASET_YAML_PATH: str = "datasets/FURNITURE_DETECTION.v1/data.yaml"
 
 # Base model to fine-tune (e.g., 'yolov8n.pt', 'yolov8s.pt').
-YOLO_BASE_MODEL: str = ""  # set me
+YOLO_BASE_MODEL: str = "yolov8n.pt"
 
 # Training hyperparameters
-EPOCHS: Optional[int] = None  # set me
-IMAGE_SIZE: Optional[int] = None  # set me (e.g., 640)
-BATCH: Optional[int] = None  # set me
+EPOCHS: Optional[int] = 5  # quick smoke test
+IMAGE_SIZE: Optional[int] = 512  # typical YOLO img size
+BATCH: Optional[int] = 4  # small batch for local testing
 CONF_THRESHOLD: float = 0.25
 IOU_THRESHOLD: float = 0.45
 

@@ -2,9 +2,11 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
+import re
 
 import mlflow
 from ultralytics import YOLO
+from pathlib import Path
 
 from FP_ObjectDetection.entity.artifact_entity import ODModelEvaluationArtifact, ODModelTrainerArtifact
 from FP_ObjectDetection.entity.config_entity import ModelEvaluationConfig
@@ -45,6 +47,11 @@ class ModelEvaluation:
                 continue
         return coerced
 
+    @staticmethod
+    def _sanitize_metric_name(name: str) -> str:
+        # MLflow allows alphanumerics, _, -, ., space, and /
+        return re.sub(r"[^a-zA-Z0-9_\-\. /]", "_", name)
+
     def initiate_model_evaluation(self) -> ODModelEvaluationArtifact:
         logging.info("Entered initiate_model_evaluation (YOLO)")
         try:
@@ -55,8 +62,9 @@ class ModelEvaluation:
                 )
 
             model = YOLO(str(os_best))
+            dataset_yaml = str(Path(self.model_evaluation_config.dataset_yaml_path).resolve())
             val_results = model.val(
-                data=self.model_evaluation_config.dataset_yaml_path,
+                data=dataset_yaml,
                 conf=self.model_evaluation_config.conf_threshold,
                 iou=self.model_evaluation_config.iou_threshold,
                 verbose=False,
@@ -70,6 +78,8 @@ class ModelEvaluation:
                 raw_metrics = dict(getattr(val_results, "metrics"))
 
             metrics = self._coerce_metrics(raw_metrics)
+            # Sanitize keys for MLflow compatibility
+            metrics = {self._sanitize_metric_name(k): v for k, v in metrics.items()}
 
             run_id = self._start_or_resume_mlflow()
             try:
