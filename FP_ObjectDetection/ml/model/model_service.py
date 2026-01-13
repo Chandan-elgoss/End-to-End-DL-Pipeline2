@@ -1,6 +1,6 @@
 """DEPRECATED (legacy BentoML classifier service).
 
-This code belonged to the older Lung X-ray classification pipeline using BentoML.
+This code belonged to the older classification pipeline using BentoML.
 For the current YOLO object-detection pipeline, use the FastAPI app in app.py.
 
 The entire implementation is intentionally disabled to avoid accidental imports

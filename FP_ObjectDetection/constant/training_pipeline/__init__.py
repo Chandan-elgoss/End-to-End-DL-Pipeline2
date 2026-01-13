@@ -33,9 +33,9 @@ DATASET_YAML_PATH: str = "datasets/FURNITURE_DETECTION.v1/data.yaml"
 YOLO_BASE_MODEL: str = "yolov8n.pt"
 
 # Training hyperparameters
-EPOCHS: Optional[int] = 5  # quick smoke test
-IMAGE_SIZE: Optional[int] = 512  # typical YOLO img size
-BATCH: Optional[int] = 4  # small batch for local testing
+EPOCHS: Optional[int] = 5  
+IMAGE_SIZE: Optional[int] = 512  
+BATCH: Optional[int] = 4  
 CONF_THRESHOLD: float = 0.25
 IOU_THRESHOLD: float = 0.45
 
